@@ -1,4 +1,4 @@
-import { query, getOne } from '../../db/pg';
+import { query, getOne } from '../../db/pg.js';
 import { Food, CreateFoodInput } from '@health-tracker/shared';
 
 export const foodRepository = {

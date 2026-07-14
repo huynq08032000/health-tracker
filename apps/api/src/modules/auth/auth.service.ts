@@ -1,9 +1,9 @@
-import { getOne, run } from '../../db/pg';
-import { HttpError } from '../../middleware/errorHandler';
-import { hashPassword, verifyPassword } from '../../utils/crypto';
-import { issueToken, revokeToken } from '../../middleware/auth';
+import { getOne, run } from '../../db/pg.js';
+import { HttpError } from '../../middleware/errorHandler.js';
+import { hashPassword, verifyPassword } from '../../utils/crypto.js';
+import { issueToken, revokeToken } from '../../middleware/auth.js';
 import { RegisterInput, LoginInput, AuthResponse, User } from '@health-tracker/shared';
-import { userService } from '../users/users.service';
+import { userService } from '../users/users.service.js';
 
 export const authService = {
   async register(input: RegisterInput): Promise<AuthResponse> {

@@ -1,7 +1,7 @@
-import { query, getOne, run } from '../../db/pg';
-import { HttpError } from '../../middleware/errorHandler';
+import { query, getOne, run } from '../../db/pg.js';
+import { HttpError } from '../../middleware/errorHandler.js';
 import { CreateFoodLogInput, UpdateFoodLogInput, FoodLog } from '@health-tracker/shared';
-import { recomputeIntake } from '../dailyLogs/dailyLogs.service';
+import { recomputeIntake } from '../dailyLogs/dailyLogs.service.js';
 
 export const foodLogService = {
   async listByDate(userId: number, logDate: string): Promise<FoodLog[]> {

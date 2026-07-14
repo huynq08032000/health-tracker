@@ -1,11 +1,11 @@
 import type { Request, Response, NextFunction, RequestHandler } from 'express';
-import { validateBody } from '../../middleware/validate';
-import { HttpError } from '../../middleware/errorHandler';
+import { validateBody } from '../../middleware/validate.js';
+import { HttpError } from '../../middleware/errorHandler.js';
 import {
   CreateUserSchema,
   UpdateUserSchema,
 } from '@health-tracker/shared';
-import { userService } from './users.service';
+import { userService } from './users.service.js';
 
 const ok: RequestHandler = (_req, res) => res.json({ ok: true });
 

@@ -1,8 +1,8 @@
 import type { Request, Response, NextFunction } from 'express';
-import { HttpError } from './errorHandler';
-import { userService } from '../modules/users/users.service';
+import { HttpError } from './errorHandler.js';
+import { userService } from '../modules/users/users.service.js';
 import crypto from 'crypto';
-import { getOne, run } from '../db/pg';
+import { getOne, run } from '../db/pg.js';
 
 declare module 'express' {
   interface Request {

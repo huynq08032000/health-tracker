@@ -1,12 +1,12 @@
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
-import usersRoute from './modules/users/users.route';
-import dailyLogsRoute from './modules/dailyLogs/dailyLogs.route';
-import foodLogsRoute from './modules/foodLogs/foodLogs.route';
-import foodsRoute from './modules/foods/foods.route';
-import authRoute from './modules/auth/auth.route';
-import { errorHandler, notFoundHandler } from './middleware/errorHandler';
+import usersRoute from './modules/users/users.route.js';
+import dailyLogsRoute from './modules/dailyLogs/dailyLogs.route.js';
+import foodLogsRoute from './modules/foodLogs/foodLogs.route.js';
+import foodsRoute from './modules/foods/foods.route.js';
+import authRoute from './modules/auth/auth.route.js';
+import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 
 const corsOrigins = process.env.CORS_ORIGIN
   ? process.env.CORS_ORIGIN.split(',').map((s) => s.trim())

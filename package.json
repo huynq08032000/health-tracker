@@ -2,7 +2,7 @@
   "name": "health-tracker",
   "version": "1.0.0",
   "private": true,
-  "description": "Local health & Kcal tracking app (React + Express + SQLite)",
+  "description": "Health & Kcal tracking app (React + Express + PostgreSQL)",
   "workspaces": [
     "apps/*",
     "packages/*"
@@ -11,7 +11,7 @@
     "dev": "concurrently -n api,web -c blue,green \"npm:dev:api\" \"npm:dev:web\"",
     "dev:api": "npm run dev -w @health-tracker/api",
     "dev:web": "npm run dev -w @health-tracker/web",
-    "build": "npm run build -w @health-tracker/api && npm run build -w @health-tracker/web",
+    "build": "npm run build -w @health-tracker/shared && npm run build -w @health-tracker/api && npm run build -w @health-tracker/web",
     "start:api": "npm run start -w @health-tracker/api",
     "lint": "eslint ."
   },

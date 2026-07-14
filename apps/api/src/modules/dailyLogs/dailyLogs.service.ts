@@ -1,5 +1,5 @@
-import { query, getOne, run } from '../../db/pg';
-import { HttpError } from '../../middleware/errorHandler';
+import { query, getOne, run } from '../../db/pg.js';
+import { HttpError } from '../../middleware/errorHandler.js';
 import { UpsertDailyLogInput, DailyLog } from '@health-tracker/shared';
 
 export async function recomputeIntake(userId: number, logDate: string): Promise<number> {

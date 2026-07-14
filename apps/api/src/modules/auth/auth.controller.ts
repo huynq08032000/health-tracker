@@ -1,12 +1,12 @@
 import type { Request, Response, NextFunction, RequestHandler } from 'express';
-import { validateBody } from '../../middleware/validate';
-import { HttpError } from '../../middleware/errorHandler';
+import { validateBody } from '../../middleware/validate.js';
+import { HttpError } from '../../middleware/errorHandler.js';
 import {
   RegisterSchema,
   LoginSchema,
   AuthResponseSchema,
 } from '@health-tracker/shared';
-import { authService } from './auth.service';
+import { authService } from './auth.service.js';
 
 export const authController = {
   register: [

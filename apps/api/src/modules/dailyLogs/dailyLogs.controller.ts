@@ -1,7 +1,7 @@
 import type { Request, Response, NextFunction, RequestHandler } from 'express';
-import { validateBody } from '../../middleware/validate';
+import { validateBody } from '../../middleware/validate.js';
 import { UpsertDailyLogSchema } from '@health-tracker/shared';
-import { dailyLogService } from './dailyLogs.service';
+import { dailyLogService } from './dailyLogs.service.js';
 
 export const dailyLogsController = {
   getByDate: (async (req: Request, res: Response) => {

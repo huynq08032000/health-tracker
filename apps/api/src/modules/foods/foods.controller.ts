@@ -1,8 +1,8 @@
 import type { Request, Response, NextFunction, RequestHandler } from 'express';
-import { validateBody } from '../../middleware/validate';
-import { HttpError } from '../../middleware/errorHandler';
+import { validateBody } from '../../middleware/validate.js';
+import { HttpError } from '../../middleware/errorHandler.js';
 import { CreateFoodSchema } from '@health-tracker/shared';
-import { foodService } from './foods.service';
+import { foodService } from './foods.service.js';
 
 export const foodsController = {
   search: (async (req: Request, res: Response) => {

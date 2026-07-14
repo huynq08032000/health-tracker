@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { query } from '../db/pg';
+import { query } from '../db/pg.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 

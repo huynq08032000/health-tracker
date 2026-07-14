@@ -1,5 +1,5 @@
-import { getPool } from '../db/pg';
-import runMigrations from '../db/migrate';
+import { getPool } from '../db/pg.js';
+import runMigrations from '../db/migrate.js';
 
 const pool = getPool();
 

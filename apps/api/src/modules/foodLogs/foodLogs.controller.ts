@@ -1,7 +1,7 @@
 import type { Request, Response, NextFunction, RequestHandler } from 'express';
-import { validateBody } from '../../middleware/validate';
+import { validateBody } from '../../middleware/validate.js';
 import { CreateFoodLogSchema, UpdateFoodLogSchema } from '@health-tracker/shared';
-import { foodLogService } from './foodLogs.service';
+import { foodLogService } from './foodLogs.service.js';
 
 export const foodLogsController = {
   listByDate: (async (req: Request, res: Response) => {
