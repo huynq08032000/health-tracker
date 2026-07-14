@@ -36,7 +36,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
   return (
     <AntLayout className="min-h-screen bg-slate-50">
-      <Header className="sticky top-0 z-50 flex items-center justify-between bg-white px-6 shadow-sm">
+      <Header
+        className="sticky top-0 z-50 flex items-center justify-between bg-white px-6 shadow-sm"
+        style={{ paddingTop: 'env(safe-area-inset-top)' }}
+      >
         <div className="flex items-center gap-8">
           <span className="cursor-pointer text-xl font-bold text-emerald-600" onClick={() => navigate('/')}>
             Health Tracker
