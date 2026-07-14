@@ -1,7 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
 import { HttpError } from './errorHandler.js';
 import { asyncHandler } from './asyncHandler.js';
-import { userService } from '../modules/users/users.service.js';
 import crypto from 'crypto';
 import { getOne, run } from '../db/pg.js';
 

@@ -6,6 +6,7 @@ import dailyLogsRoute from './modules/dailyLogs/dailyLogs.route.js';
 import foodLogsRoute from './modules/foodLogs/foodLogs.route.js';
 import foodsRoute from './modules/foods/foods.route.js';
 import authRoute from './modules/auth/auth.route.js';
+import stravaRoute from './modules/strava/strava.route.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 
 const corsOrigins = process.env.CORS_ORIGIN
@@ -26,6 +27,7 @@ export function createApp() {
   app.use('/api/food-logs', foodLogsRoute);
   app.use('/api/foods', foodsRoute);
   app.use('/api/auth', authRoute);
+  app.use('/api/strava', stravaRoute);
 
   app.use(notFoundHandler);
   app.use(errorHandler);

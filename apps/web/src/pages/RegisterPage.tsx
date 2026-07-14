@@ -17,6 +17,7 @@ export function RegisterPage() {
     setLoading(true);
     try {
       const { confirmPassword, ...payload } = values;
+      void confirmPassword;
       await apiClient.post('/api/auth/register', payload);
       message.success('Đăng ký thành công! Vui lòng đăng nhập.');
       window.location.href = '/login';

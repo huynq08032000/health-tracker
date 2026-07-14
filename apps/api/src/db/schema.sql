@@ -27,6 +27,7 @@ CREATE TABLE IF NOT EXISTS daily_logs (
   steps            INTEGER DEFAULT 0,
   exercise_min     INTEGER DEFAULT 0,
   calories_burned  INTEGER DEFAULT 0,
+  sleep_hours      REAL,
   calories_intake  INTEGER DEFAULT 0,
   note             TEXT,
   created_at       TEXT NOT NULL DEFAULT NOW(),
@@ -65,6 +66,19 @@ CREATE TABLE IF NOT EXISTS sessions (
   token      TEXT PRIMARY KEY,
   user_id    BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   expires_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS strava_connections (
+  id               BIGSERIAL PRIMARY KEY,
+  user_id          BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  strava_athlete_id BIGINT NOT NULL,
+  access_token     TEXT NOT NULL,
+  refresh_token    TEXT NOT NULL,
+  expires_at       TEXT NOT NULL,
+  scope            TEXT,
+  created_at       TEXT NOT NULL DEFAULT NOW(),
+  updated_at       TEXT NOT NULL DEFAULT NOW(),
+  UNIQUE (user_id)
 );
 
 CREATE INDEX IF NOT EXISTS idx_daily_logs_user_date ON daily_logs(user_id, log_date);

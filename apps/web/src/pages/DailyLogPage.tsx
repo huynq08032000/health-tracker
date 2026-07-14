@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Input, InputNumber, Button, DatePicker, Select, Progress, Tag, Typography, message } from 'antd';
-import { BellOutlined } from '@ant-design/icons';
+import { Input, InputNumber, Button, DatePicker, Select, Progress, Tag, Typography, message, Space } from 'antd';
+import { BellOutlined, LinkOutlined, DisconnectOutlined, SyncOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { useCurrentUser } from '../hooks/useCurrentUser';
 import { useDailyLog, useUpsertDailyLog } from '../hooks/useDailyLogs';
+import { useStravaStatus, useStravaConnect, useStravaDisconnect, useStravaSync } from '../hooks/useStrava';
 import { Card, Field } from '../components/ui';
 import type { UpsertDailyLogInput } from '@health-tracker/shared';
 import { todayISO } from '../lib/format';
@@ -36,6 +37,78 @@ function persistReminder(state: ReminderPersist | null): void {
   }
 }
 
+function StravaCard({ userId }: { userId: number | null }) {
+  const { data: status, isLoading: statusLoading } = useStravaStatus(userId);
+  const connect = useStravaConnect(userId);
+  const disconnect = useStravaDisconnect(userId);
+  const sync = useStravaSync(userId);
+
+  if (statusLoading) {
+    return (
+      <Card className="!rounded-2xl" title={<span className="text-lg font-semibold">Strava</span>}>
+        <Text type="secondary">Đang kiểm tra...</Text>
+      </Card>
+    );
+  }
+
+  const isConnected = status?.connected === true;
+
+  return (
+    <Card className="!rounded-2xl" title={<span className="text-lg font-semibold">Strava</span>}>
+      {isConnected ? (
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <Text strong className="text-emerald-600">Đã kết nối</Text>
+            <div className="text-xs text-slate-500">
+              Athlete ID: {status.athleteId}
+            </div>
+          </div>
+          <Space>
+            <Button
+              icon={<SyncOutlined />}
+              onClick={() => sync.mutate()}
+              loading={sync.isPending}
+              className="!rounded-xl"
+            >
+              Đồng bộ
+            </Button>
+            <Button
+              danger
+              icon={<DisconnectOutlined />}
+              onClick={() => disconnect.mutate()}
+              loading={disconnect.isPending}
+              className="!rounded-xl"
+            >
+              Ngắt kết nối
+            </Button>
+          </Space>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <Text type="secondary">Đồng bộ hoạt động thể thao từ Strava</Text>
+          <Button
+            type="primary"
+            icon={<LinkOutlined />}
+            onClick={() => connect.mutate()}
+            loading={connect.isPending}
+            className="!rounded-xl"
+          >
+            Kết nối Strava
+          </Button>
+        </div>
+      )}
+      {sync.isError && (
+        <p className="mt-2 text-sm text-rose-500">{(sync.error as Error).message}</p>
+      )}
+      {sync.isSuccess && (
+        <p className="mt-2 text-sm text-emerald-600">
+          Đã đồng bộ {sync.data?.activitiesSynced} hoạt động · +{sync.data?.stepsAdded} bước · +{sync.data?.caloriesBurnedAdded} Kcal
+        </p>
+      )}
+    </Card>
+  );
+}
+
 export function DailyLogPage() {
   const { userId } = useCurrentUser();
   const [date, setDate] = useState(todayISO());
@@ -51,6 +124,7 @@ export function DailyLogPage() {
     steps: daily?.steps ?? 0,
     exercise_min: daily?.exercise_min ?? 0,
     calories_burned: daily?.calories_burned ?? 0,
+    sleep_hours: daily?.sleep_hours ?? undefined,
     note: daily?.note ?? undefined,
   });
 
@@ -75,9 +149,22 @@ export function DailyLogPage() {
       steps: daily?.steps ?? 0,
       exercise_min: daily?.exercise_min ?? 0,
       calories_burned: daily?.calories_burned ?? 0,
+      sleep_hours: daily?.sleep_hours ?? undefined,
       note: daily?.note ?? undefined,
     });
   }, [date, daily]);
+
+  function fallbackNotify(title: string) {
+    try {
+      new Notification(title, {
+        body: 'Đã đến giờ uống nước!',
+        tag: 'water-reminder',
+        requireInteraction: true,
+      });
+    } catch {
+      message.info('Đến giờ uống nước! 💧');
+    }
+  }
 
   const fireNotification = useCallback(() => {
     const target = recommendedWaterRef.current;
@@ -87,9 +174,6 @@ export function DailyLogPage() {
       tag: 'water-reminder',
       requireInteraction: true,
     };
-    // iOS Safari only supports notifications via the Service Worker
-    // (registration.showNotification); the `new Notification()` constructor
-    // is ignored there. Fall back gracefully when no SW is available.
     const sw = navigator.serviceWorker;
     if (sw) {
       sw.getRegistration()
@@ -105,18 +189,6 @@ export function DailyLogPage() {
       fallbackNotify(title);
     }
   }, []);
-
-  function fallbackNotify(title: string) {
-    try {
-      new Notification(title, {
-        body: 'Đã đến giờ uống nước!',
-        tag: 'water-reminder',
-        requireInteraction: true,
-      });
-    } catch {
-      message.info('Đến giờ uống nước! 💧');
-    }
-  }
 
   // Timestamp-anchored ticker: derives the remaining minutes from an absolute
   // next-reminder time so the countdown survives a page refresh.
@@ -263,6 +335,8 @@ export function DailyLogPage() {
         </div>
       </Card>
 
+      <StravaCard userId={userId} />
+
       <Card className="!rounded-2xl" title={<span className="text-lg font-semibold">Nhật ký hàng ngày</span>}>
         <form
           className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3"
@@ -336,6 +410,17 @@ export function DailyLogPage() {
               min={0}
               value={form.calories_burned}
               onChange={(v) => setForm({ ...form, calories_burned: Number(v) })}
+              className="!w-full !rounded-xl"
+              controls={false}
+            />
+          </Field>
+          <Field label="Giấc ngủ (giờ)">
+            <InputNumber
+              step={0.5}
+              min={0}
+              max={24}
+              value={form.sleep_hours}
+              onChange={(v) => setForm({ ...form, sleep_hours: v ?? undefined })}
               className="!w-full !rounded-xl"
               controls={false}
             />

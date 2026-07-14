@@ -70,6 +70,7 @@ export const DailyLogSchema = z.object({
   steps: z.number().int().nonnegative().default(0),
   exercise_min: z.number().int().nonnegative().default(0),
   calories_burned: z.number().int().nonnegative().default(0),
+  sleep_hours: z.number().nonnegative().default(0),
   calories_intake: z.number().int().nonnegative().default(0),
   note: z.string().nullable(),
   created_at: ISODateTime,
@@ -86,6 +87,7 @@ export const UpsertDailyLogSchema = z.object({
   steps: z.number().int().nonnegative().optional(),
   exercise_min: z.number().int().nonnegative().optional(),
   calories_burned: z.number().int().nonnegative().optional(),
+  sleep_hours: z.number().nonnegative().optional(),
   note: z.string().optional(),
 });
 export type UpsertDailyLogInput = z.infer<typeof UpsertDailyLogSchema>;
@@ -172,3 +174,24 @@ export function calcTdee(input: TdeeInput): number {
   const goalDelta = goal === 'lose' ? -500 : goal === 'gain' ? 300 : 0;
   return Math.round(tdee + goalDelta);
 }
+
+export const StravaConnectionSchema = z.object({
+  id: z.number(),
+  user_id: z.number(),
+  strava_athlete_id: z.number(),
+  access_token: z.string(),
+  refresh_token: z.string(),
+  expires_at: z.string(),
+  scope: z.string().nullable(),
+  created_at: ISODateTime,
+  updated_at: ISODateTime,
+});
+export type StravaConnection = z.infer<typeof StravaConnectionSchema>;
+
+export const StravaSyncResultSchema = z.object({
+  activitiesSynced: z.number(),
+  stepsAdded: z.number(),
+  caloriesBurnedAdded: z.number(),
+  exerciseMinAdded: z.number(),
+});
+export type StravaSyncResult = z.infer<typeof StravaSyncResultSchema>;

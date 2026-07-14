@@ -1,6 +1,5 @@
-import type { Request, Response, NextFunction, RequestHandler } from 'express';
+import type { Request, Response, RequestHandler } from 'express';
 import { validateBody } from '../../middleware/validate.js';
-import { HttpError } from '../../middleware/errorHandler.js';
 import { CreateFoodSchema } from '@health-tracker/shared';
 import { foodService } from './foods.service.js';
 

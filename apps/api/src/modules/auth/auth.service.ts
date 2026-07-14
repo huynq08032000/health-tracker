@@ -1,9 +1,8 @@
-import { getOne, run } from '../../db/pg.js';
+import { getOne } from '../../db/pg.js';
 import { HttpError } from '../../middleware/errorHandler.js';
 import { hashPassword, verifyPassword } from '../../utils/crypto.js';
 import { issueToken, revokeToken } from '../../middleware/auth.js';
 import { RegisterInput, LoginInput, AuthResponse, User } from '@health-tracker/shared';
-import { userService } from '../users/users.service.js';
 
 export const authService = {
   async register(input: RegisterInput): Promise<AuthResponse> {
@@ -53,5 +52,6 @@ export const authService = {
 
 function omitPassword(user: User): Omit<User, 'password_hash'> {
   const { password_hash, ...rest } = user as any;
+  void password_hash;
   return rest;
 }

@@ -7,8 +7,6 @@ import {
 } from '@health-tracker/shared';
 import { userService } from './users.service.js';
 
-const ok: RequestHandler = (_req, res) => res.json({ ok: true });
-
 export const usersController = {
   list: (async (_req: Request, res: Response) => {
     res.json(await userService.list());

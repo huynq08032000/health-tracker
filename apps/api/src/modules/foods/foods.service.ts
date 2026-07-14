@@ -1,4 +1,4 @@
-import { query, getOne, run } from '../../db/pg.js';
+import { query, getOne } from '../../db/pg.js';
 import { HttpError } from '../../middleware/errorHandler.js';
 import { CreateFoodInput, Food } from '@health-tracker/shared';
 

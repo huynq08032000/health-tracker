@@ -56,7 +56,7 @@ Lưu ý:
         };
       } catch (err) {
         console.error('Gemini API error:', err);
-        throw new Error(`Lỗi AI: ${(err as Error).message}`);
+        throw new Error(`Lỗi AI: ${(err as Error).message}`, { cause: err });
       }
     },
   });

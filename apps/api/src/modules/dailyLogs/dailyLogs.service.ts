@@ -39,8 +39,8 @@ export const dailyLogService = {
 
     await query(
       `INSERT INTO daily_logs
-        (user_id, log_date, weight_kg, water_ml, recommended_water_ml, water_reminder_interval_minutes, steps, exercise_min, calories_burned, note)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        (user_id, log_date, weight_kg, water_ml, recommended_water_ml, water_reminder_interval_minutes, steps, exercise_min, calories_burned, sleep_hours, note)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
        ON CONFLICT (user_id, log_date) DO UPDATE SET
         weight_kg = COALESCE(EXCLUDED.weight_kg, daily_logs.weight_kg),
         water_ml = COALESCE(EXCLUDED.water_ml, daily_logs.water_ml),
@@ -49,6 +49,7 @@ export const dailyLogService = {
         steps = COALESCE(EXCLUDED.steps, daily_logs.steps),
         exercise_min = COALESCE(EXCLUDED.exercise_min, daily_logs.exercise_min),
         calories_burned = COALESCE(EXCLUDED.calories_burned, daily_logs.calories_burned),
+        sleep_hours = COALESCE(EXCLUDED.sleep_hours, daily_logs.sleep_hours),
         note = COALESCE(EXCLUDED.note, daily_logs.note),
         updated_at = NOW()`,
       [
@@ -61,6 +62,7 @@ export const dailyLogService = {
         input.steps ?? null,
         input.exercise_min ?? null,
         input.calories_burned ?? null,
+        input.sleep_hours ?? null,
         input.note ?? null,
       ],
     );
@@ -84,9 +86,10 @@ export const dailyLogService = {
         steps = COALESCE($5, steps),
         exercise_min = COALESCE($6, exercise_min),
         calories_burned = COALESCE($7, calories_burned),
-        note = COALESCE($8, note),
+        sleep_hours = COALESCE($8, sleep_hours),
+        note = COALESCE($9, note),
         updated_at = NOW()
-      WHERE id = $9
+      WHERE id = $10
       RETURNING *`,
       [
         input.weight_kg ?? null,
@@ -96,6 +99,7 @@ export const dailyLogService = {
         input.steps ?? null,
         input.exercise_min ?? null,
         input.calories_burned ?? null,
+        input.sleep_hours ?? null,
         input.note ?? null,
         id,
       ],

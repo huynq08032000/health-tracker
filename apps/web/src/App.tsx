@@ -4,11 +4,14 @@ import { Layout } from './components/Layout';
 import { DashboardPage } from './pages/DashboardPage';
 import { FoodLogPage } from './pages/FoodLogPage';
 import { DailyLogPage } from './pages/DailyLogPage';
+import { TrendsPage } from './pages/TrendsPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
 import { antdTheme } from './theme/antd-theme';
 import { useCurrentUser } from './hooks/useCurrentUser';
+import { useAppLoading } from './hooks/useAppLoading';
+import { GlobalLoading } from './components/GlobalLoading';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { userId } = useCurrentUser();
@@ -23,8 +26,11 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
+  const { isLoading } = useAppLoading();
+
   return (
     <ConfigProvider theme={antdTheme}>
+      {isLoading && <GlobalLoading />}
       <Routes>
         <Route path="/login" element={
           <PublicRoute>
@@ -61,6 +67,13 @@ export default function App() {
           <ProtectedRoute>
             <Layout>
               <ProfilePage />
+            </Layout>
+          </ProtectedRoute>
+        } />
+        <Route path="/trends" element={
+          <ProtectedRoute>
+            <Layout>
+              <TrendsPage />
             </Layout>
           </ProtectedRoute>
         } />

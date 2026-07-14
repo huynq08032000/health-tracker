@@ -11,6 +11,7 @@ const links = [
   { to: '/food', label: 'Nhật ký ăn uống' },
   { to: '/daily', label: 'Cân nặng & Nước' },
   { to: '/profile', label: 'Hồ sơ' },
+  { to: '/trends', label: 'Xu hướng' },
 ];
 
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>
