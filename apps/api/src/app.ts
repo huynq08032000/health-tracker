@@ -10,7 +10,7 @@ import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 
 const corsOrigins = process.env.CORS_ORIGIN
   ? process.env.CORS_ORIGIN.split(',').map((s) => s.trim())
-  : ['http://localhost:3000'];
+  : ['http://localhost:3000', 'https://health-tracker-web-five.vercel.app'];
 
 export function createApp() {
   const app = express();
