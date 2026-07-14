@@ -15,7 +15,7 @@ services:
           name: health-tracker-db
           property: connectionString
       - key: CORS_ORIGIN
-        sync: false
+        value: https://health-tracker-web-five.vercel.app
 
 databases:
   - name: health-tracker-db
