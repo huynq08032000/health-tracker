@@ -61,7 +61,7 @@ export function DailyLogPage() {
   const intervalMinutesRef = useRef(20);
   const recommendedWaterRef = useRef(0);
 
-  const recommendedWater = form.weight_kg ? Math.round(form.weight_kg * 0.4 * 1000) : form.recommended_water_ml ?? 0;
+  const recommendedWater = form.weight_kg ? Math.round(form.weight_kg * 0.04 * 1000) : form.recommended_water_ml ?? 0;
   const waterPct = recommendedWater > 0 ? Math.min(100, Math.round(((form.water_ml ?? 0) / recommendedWater) * 100)) : 0;
   recommendedWaterRef.current = recommendedWater;
 
@@ -81,16 +81,42 @@ export function DailyLogPage() {
 
   const fireNotification = useCallback(() => {
     const target = recommendedWaterRef.current;
+    const title = 'Nhắc nhở uống nước 💧';
+    const options = {
+      body: `Đã đến giờ uống nước! Mục tiêu: ${target} ml/ngày`,
+      tag: 'water-reminder',
+      requireInteraction: true,
+    };
+    // iOS Safari only supports notifications via the Service Worker
+    // (registration.showNotification); the `new Notification()` constructor
+    // is ignored there. Fall back gracefully when no SW is available.
+    const sw = navigator.serviceWorker;
+    if (sw) {
+      sw.getRegistration()
+        .then((reg) => {
+          if (reg && 'showNotification' in reg) {
+            reg.showNotification(title, options).catch(() => fallbackNotify(title));
+          } else {
+            fallbackNotify(title);
+          }
+        })
+        .catch(() => fallbackNotify(title));
+    } else {
+      fallbackNotify(title);
+    }
+  }, []);
+
+  function fallbackNotify(title: string) {
     try {
-      new Notification('Nhắc nhở uống nước 💧', {
-        body: `Đã đến giờ uống nước! Mục tiêu: ${target} ml/ngày`,
+      new Notification(title, {
+        body: 'Đã đến giờ uống nước!',
         tag: 'water-reminder',
         requireInteraction: true,
       });
     } catch {
       message.info('Đến giờ uống nước! 💧');
     }
-  }, []);
+  }
 
   // Timestamp-anchored ticker: derives the remaining minutes from an absolute
   // next-reminder time so the countdown survives a page refresh.
