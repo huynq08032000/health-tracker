@@ -228,7 +228,7 @@ export function DailyLogPage() {
           <div>
             <Text type="secondary">Khuyến nghị: {recommendedWater} ml/ngày</Text>
             <div className="text-xs text-slate-400">
-              Dựa trên cân nặng {form.weight_kg ?? '—'} kg × 0.4L
+              Dựa trên cân nặng {form.weight_kg ?? '—'} kg × 0.04L
             </div>
           </div>
           <Tag color="cyan" className="!m-0 !rounded-lg">
