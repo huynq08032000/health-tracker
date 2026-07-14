@@ -3,8 +3,8 @@ services:
     name: health-tracker-api
     runtime: node
     plan: free
-    buildCommand: npm install && npm run build
-    startCommand: npm start
+    buildCommand: npm install && npm run build -w @health-tracker/shared && npm run build -w @health-tracker/api
+    startCommand: npm start -w @health-tracker/api
     healthCheckPath: /api/health
     envVars:
       - key: NODE_ENV
