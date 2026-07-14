@@ -10,6 +10,32 @@ import { todayISO } from '../lib/format';
 
 const { Text } = Typography;
 
+const REMINDER_KEY = 'health-tracker:water-reminder';
+
+interface ReminderPersist {
+  active: boolean;
+  nextReminderAt: number;
+  intervalMinutes: number;
+}
+
+function loadReminder(): ReminderPersist | null {
+  try {
+    const raw = localStorage.getItem(REMINDER_KEY);
+    return raw ? (JSON.parse(raw) as ReminderPersist) : null;
+  } catch {
+    return null;
+  }
+}
+
+function persistReminder(state: ReminderPersist | null): void {
+  try {
+    if (state) localStorage.setItem(REMINDER_KEY, JSON.stringify(state));
+    else localStorage.removeItem(REMINDER_KEY);
+  } catch {
+    /* localStorage unavailable */
+  }
+}
+
 export function DailyLogPage() {
   const { userId } = useCurrentUser();
   const [date, setDate] = useState(todayISO());
@@ -30,10 +56,14 @@ export function DailyLogPage() {
 
   const [reminderActive, setReminderActive] = useState(false);
   const [reminderCountdown, setReminderCountdown] = useState(20);
-  const intervalRef = useRef<ReturnType<typeof setInterval>>();
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const nextReminderAtRef = useRef(0);
+  const intervalMinutesRef = useRef(20);
+  const recommendedWaterRef = useRef(0);
 
   const recommendedWater = form.weight_kg ? Math.round(form.weight_kg * 0.4 * 1000) : form.recommended_water_ml ?? 0;
   const waterPct = recommendedWater > 0 ? Math.min(100, Math.round(((form.water_ml ?? 0) / recommendedWater) * 100)) : 0;
+  recommendedWaterRef.current = recommendedWater;
 
   useEffect(() => {
     setForm({
@@ -48,6 +78,38 @@ export function DailyLogPage() {
       note: daily?.note ?? undefined,
     });
   }, [date, daily]);
+
+  const fireNotification = useCallback(() => {
+    const target = recommendedWaterRef.current;
+    try {
+      new Notification('Nhắc nhở uống nước 💧', {
+        body: `Đã đến giờ uống nước! Mục tiêu: ${target} ml/ngày`,
+        tag: 'water-reminder',
+        requireInteraction: true,
+      });
+    } catch {
+      message.info('Đến giờ uống nước! 💧');
+    }
+  }, []);
+
+  // Timestamp-anchored ticker: derives the remaining minutes from an absolute
+  // next-reminder time so the countdown survives a page refresh.
+  const startTicker = useCallback(() => {
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    intervalRef.current = setInterval(() => {
+      const now = Date.now();
+      const remainingMs = nextReminderAtRef.current - now;
+      if (remainingMs <= 0) {
+        fireNotification();
+        const next = now + intervalMinutesRef.current * 60000;
+        nextReminderAtRef.current = next;
+        persistReminder({ active: true, nextReminderAt: next, intervalMinutes: intervalMinutesRef.current });
+        setReminderCountdown(intervalMinutesRef.current);
+      } else {
+        setReminderCountdown(Math.max(0, Math.ceil(remainingMs / 60000)));
+      }
+    }, 1000);
+  }, [fireNotification]);
 
   const startReminder = useCallback(async () => {
     if (!('Notification' in window)) {
@@ -65,34 +127,53 @@ export function DailyLogPage() {
       return;
     }
 
-    if (intervalRef.current) clearInterval(intervalRef.current);
     const minutes = form.water_reminder_interval_minutes ?? 20;
-    setReminderCountdown(minutes);
+    const next = Date.now() + minutes * 60000;
+    nextReminderAtRef.current = next;
+    intervalMinutesRef.current = minutes;
+    persistReminder({ active: true, nextReminderAt: next, intervalMinutes: minutes });
     setReminderActive(true);
-
-    intervalRef.current = setInterval(() => {
-      setReminderCountdown((prev) => {
-        if (prev <= 1) {
-          try {
-            new Notification('Nhắc nhở uống nước 💧', {
-              body: `Đã đến giờ uống nước! Mục tiêu: ${recommendedWater} ml/ngày`,
-              tag: 'water-reminder',
-              requireInteraction: true,
-            });
-          } catch {
-            message.info('Đến giờ uống nước! 💧');
-          }
-          return minutes;
-        }
-        return prev - 1;
-      });
-    }, 60000);
-  }, [form.water_reminder_interval_minutes, recommendedWater]);
+    setReminderCountdown(minutes);
+    startTicker();
+  }, [form.water_reminder_interval_minutes, startTicker]);
 
   const stopReminder = useCallback(() => {
     if (intervalRef.current) clearInterval(intervalRef.current);
+    intervalRef.current = null;
     setReminderActive(false);
+    persistReminder(null);
   }, []);
+
+  // Resume the countdown after F5 / SPA reload, and clean up on unmount.
+  useEffect(() => {
+    const saved = loadReminder();
+    if (saved?.active) {
+      const now = Date.now();
+      let next = saved.nextReminderAt;
+      if (next <= now) {
+        fireNotification();
+        next = now + saved.intervalMinutes * 60000;
+      }
+      nextReminderAtRef.current = next;
+      intervalMinutesRef.current = saved.intervalMinutes;
+      persistReminder({ active: true, nextReminderAt: next, intervalMinutes: saved.intervalMinutes });
+      setReminderActive(true);
+      setReminderCountdown(Math.max(0, Math.ceil((next - now) / 60000)));
+      startTicker();
+    }
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, [startTicker, fireNotification]);
+
+  // Keep the running interval in sync if the user changes it while active.
+  useEffect(() => {
+    if (!reminderActive) return;
+    const minutes = form.water_reminder_interval_minutes ?? 20;
+    intervalMinutesRef.current = minutes;
+    const saved = loadReminder();
+    if (saved) persistReminder({ ...saved, intervalMinutes: minutes });
+  }, [form.water_reminder_interval_minutes, reminderActive]);
 
   const sipWater = useCallback(() => {
     setForm((prev) => ({ ...prev, water_ml: (prev.water_ml ?? 0) + 200 }));
