@@ -1,5 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
 import { HttpError } from './errorHandler.js';
+import { asyncHandler } from './asyncHandler.js';
 import { userService } from '../modules/users/users.service.js';
 import crypto from 'crypto';
 import { getOne, run } from '../db/pg.js';
@@ -12,7 +13,7 @@ declare module 'express' {
 
 const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
-export async function authMiddleware(req: Request, _res: Response, next: NextFunction) {
+export const authMiddleware = asyncHandler(async (req: Request, _res: Response, next: NextFunction) => {
   const header = req.headers.authorization;
   if (!header?.startsWith('Bearer ')) {
     throw new HttpError(401, 'Missing token');
@@ -27,7 +28,7 @@ export async function authMiddleware(req: Request, _res: Response, next: NextFun
   }
   req.user = { id: session.user_id };
   next();
-}
+});
 
 export async function issueToken(userId: number): Promise<string> {
   const token = crypto.randomUUID ? crypto.randomUUID() : crypto.randomBytes(32).toString('hex');
