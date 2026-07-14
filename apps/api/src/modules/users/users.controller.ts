@@ -1,6 +1,7 @@
-import type { Request, Response, NextFunction, RequestHandler } from 'express';
+import type { Request, Response, NextFunction } from 'express';
 import { validateBody } from '../../middleware/validate.js';
 import { HttpError } from '../../middleware/errorHandler.js';
+import { asyncHandler } from '../../middleware/asyncHandler.js';
 import {
   CreateUserSchema,
   UpdateUserSchema,
@@ -8,38 +9,38 @@ import {
 import { userService } from './users.service.js';
 
 export const usersController = {
-  list: (async (_req: Request, res: Response) => {
+  list: asyncHandler(async (_req: Request, res: Response) => {
     res.json(await userService.list());
-  }) as RequestHandler,
+  }),
 
-  getById: (async (req: Request, res: Response) => {
+  getById: asyncHandler(async (req: Request, res: Response) => {
     res.json(await userService.getById(Number(req.params.id)));
-  }) as RequestHandler,
+  }),
 
-  getByUsername: (async (req: Request, res: Response) => {
+  getByUsername: asyncHandler(async (req: Request, res: Response) => {
     res.json(await userService.getByUsername(req.params.username));
-  }) as RequestHandler,
+  }),
 
   create: [
     validateBody(CreateUserSchema),
-    (async (_req: Request, res: Response) => {
+    asyncHandler(async (_req: Request, res: Response) => {
       res.status(201).json(await userService.create(res.locals.validated as any));
-    }) as RequestHandler,
+    }),
   ],
 
   update: [
     validateBody(UpdateUserSchema),
-    (async (req: Request, res: Response) => {
+    asyncHandler(async (req: Request, res: Response) => {
       res.json(await userService.update(Number(req.params.id), res.locals.validated as any));
-    }) as RequestHandler,
+    }),
   ],
 
-  remove: (async (req: Request, res: Response, next: NextFunction) => {
+  remove: asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
     try {
       await userService.remove(Number(req.params.id));
       res.status(204).end();
     } catch (err) {
       next(err instanceof HttpError ? err : new Error(String(err)));
     }
-  }) as RequestHandler,
+  }),
 };

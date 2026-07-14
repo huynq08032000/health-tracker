@@ -11,13 +11,24 @@ import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 
 const corsOrigins = process.env.CORS_ORIGIN
   ? process.env.CORS_ORIGIN.split(',').map((s) => s.trim())
-  : ['http://localhost:3000', 'https://health-tracker-web-five.vercel.app'];
+  : ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:3002', 'https://health-tracker-web-five.vercel.app'];
 
 export function createApp() {
   const app = express();
 
   app.use(helmet());
-  app.use(cors({ origin: corsOrigins }));
+  app.use(cors({
+    origin: (origin, callback) => {
+      if (!origin || corsOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
+    credentials: true,
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    exposedHeaders: ['Authorization'],
+  }));
   app.use(express.json());
 
   app.get('/api/health', (_req, res) => res.json({ status: 'ok' }));
