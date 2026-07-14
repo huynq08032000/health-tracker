@@ -1,6 +1,7 @@
+import { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { Layout as AntLayout, Menu, Dropdown, Button } from 'antd';
-import { UserOutlined, LogoutOutlined } from '@ant-design/icons';
+import { Layout as AntLayout, Dropdown, Button, Drawer } from 'antd';
+import { UserOutlined, LogoutOutlined, MenuOutlined } from '@ant-design/icons';
 import { useCurrentUser } from '../hooks/useCurrentUser';
 
 const { Header, Content } = AntLayout;
@@ -12,9 +13,15 @@ const links = [
   { to: '/profile', label: 'Hồ sơ' },
 ];
 
+const navLinkClass = ({ isActive }: { isActive: boolean }) =>
+  `px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+    isActive ? 'text-emerald-600 bg-emerald-50' : 'text-slate-600 hover:text-emerald-600 hover:bg-slate-100'
+  }`;
+
 export function Layout({ children }: { children: React.ReactNode }) {
   const { userId, clearUser } = useCurrentUser();
   const navigate = useNavigate();
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   const userMenuItems = [
     {
@@ -34,39 +41,81 @@ export function Layout({ children }: { children: React.ReactNode }) {
     },
   ];
 
+  const open = (to: string) => {
+    setDrawerOpen(false);
+    navigate(to);
+  };
+
   return (
     <AntLayout className="min-h-screen bg-slate-50">
       <Header
-        className="sticky top-0 z-50 flex items-center justify-between bg-white px-6 shadow-sm"
-        style={{ paddingTop: 'env(safe-area-inset-top)' }}
+        className="sticky top-0 z-50 flex items-center justify-between bg-white px-4 shadow-sm sm:px-6"
+        style={{ paddingTop: 'env(safe-area-inset-top)', height: 'auto', lineHeight: 'normal', minHeight: 60 }}
       >
-        <div className="flex items-center gap-8">
-          <span className="cursor-pointer text-xl font-bold text-emerald-600" onClick={() => navigate('/')}>
+        <div className="flex items-center gap-2 sm:gap-6">
+          <span
+            className="cursor-pointer whitespace-nowrap text-lg font-bold text-emerald-600 sm:text-xl"
+            onClick={() => navigate('/')}
+          >
             Health Tracker
           </span>
-          <Menu
-            mode="horizontal"
-            selectedKeys={links.filter(l => {
-              if (l.end) return window.location.pathname === l.to;
-              return window.location.pathname.startsWith(l.to);
-            }).map(l => l.to)}
-            items={links.map(l => ({
-              key: l.to,
-              label: <NavLink to={l.to} end={l.end} className="text-sm font-medium">{l.label}</NavLink>,
-            }))}
-            className="!min-w-0 !border-b-0 !bg-transparent"
-            style={{ flex: 1, minWidth: 0 }}
+          <nav className="hidden items-center gap-1 md:flex">
+            {links.map((l) => (
+              <NavLink key={l.to} to={l.to} end={l.end} className={navLinkClass}>
+                {l.label}
+              </NavLink>
+            ))}
+          </nav>
+        </div>
+
+        <div className="flex items-center gap-2">
+          {userId != null && (
+            <Dropdown menu={{ items: userMenuItems }} placement="bottomRight" arrow>
+              <Button type="text" icon={<UserOutlined />} className="!text-slate-600 hover:!bg-slate-100">
+                Tài khoản
+              </Button>
+            </Dropdown>
+          )}
+          <Button
+            type="text"
+            aria-label="Mở menu"
+            icon={<MenuOutlined />}
+            className="!text-slate-600 md:hidden"
+            onClick={() => setDrawerOpen(true)}
           />
         </div>
-        {userId != null && (
-          <Dropdown menu={{ items: userMenuItems }} placement="bottomRight" arrow>
-            <Button type="text" icon={<UserOutlined />} className="!text-slate-600 hover:!bg-slate-100">
-              Tài khoản
-            </Button>
-          </Dropdown>
-        )}
       </Header>
-      <Content className="mx-auto max-w-5xl px-4 py-6 sm:px-6 lg:px-8">
+
+      <Drawer
+        title="Menu"
+        placement="right"
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        styles={{ body: { padding: 0 } }}
+      >
+        <nav className="flex flex-col gap-1 p-2">
+          {links.map((l) => (
+            <NavLink
+              key={l.to}
+              to={l.to}
+              end={l.end}
+              onClick={() => open(l.to)}
+              className={({ isActive }) =>
+                `rounded-lg px-3 py-3 text-sm font-medium ${
+                  isActive ? 'bg-emerald-50 text-emerald-600' : 'text-slate-700 hover:bg-slate-100'
+                }`
+              }
+            >
+              {l.label}
+            </NavLink>
+          ))}
+        </nav>
+      </Drawer>
+
+      <Content
+        className="mx-auto max-w-5xl px-4 py-6 sm:px-6 lg:px-8"
+        style={{ paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom))' }}
+      >
         {children}
       </Content>
     </AntLayout>
