@@ -1,8 +1,8 @@
 import { apiClient } from '../api/client';
 import { useMemo, useState, useEffect } from 'react';
-import { Card, Progress, Statistic, Typography, Tag, Space, DatePicker, Select, InputNumber, Button, message } from 'antd';
+import { Card, Progress, Statistic, Typography, Tag, Space, DatePicker, Select, InputNumber, Button, message, Modal, Spin } from 'antd';
 import dayjs from 'dayjs';
-import { FireOutlined, ThunderboltOutlined, ClockCircleOutlined, PlusOutlined } from '@ant-design/icons';
+import { FireOutlined, ThunderboltOutlined, ClockCircleOutlined, PlusOutlined, RobotOutlined } from '@ant-design/icons';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 import { useUser } from '../hooks/useUsers';
 import { useCurrentUser } from '../hooks/useCurrentUser';
@@ -68,6 +68,9 @@ export function DashboardPage() {
   const { data: searchResults = [] } = useFoodSearch(quickFoodSearch);
 
   const [suggestions, setSuggestions] = useState<Food[]>([]);
+  const [aiModalOpen, setAiModalOpen] = useState(false);
+  const [aiAnalysis, setAiAnalysis] = useState('');
+  const [aiLoading, setAiLoading] = useState(false);
 
   useEffect(() => {
     if (remaining <= 0 || !user) {
@@ -121,6 +124,39 @@ export function DashboardPage() {
     openQuickAdd('snack');
     setQuickSelectedFood(food);
     setQuickFoodSearch(food.name);
+  }
+
+  async function handleAiAnalysis() {
+    setAiLoading(true);
+    setAiModalOpen(true);
+    setAiAnalysis('');
+    try {
+      const sleepHours = daily?.sleep_hours ?? 0;
+      const waterMl = daily?.water_ml ?? 0;
+      const weightKg = daily?.weight_kg ?? user?.weight_kg ?? 0;
+      const prompt = `Bạn là chuyên gia dinh dưỡng. Hãy phân tích ngắn gọn (3-4 gạch) về tình trạng sức khỏe hôm nay dựa trên các chỉ số sau, trả lời bằng tiếng Việt:
+- Calo nạp vào: ${intake} kcal (mục tiêu: ${goal} kcal)
+- Calo tiêu hao vận động: ${burned} kcal
+- Cân nặng: ${weightKg} kg
+- Nước đã uống: ${waterMl} ml
+- Giấc ngủ: ${sleepHours} giờ
+- Tỷ lệ dinh dưỡng: Protein ${macros.find(m => m.key === 'protein')?.value || 0}g, Carbs ${macros.find(m => m.key === 'carbs')?.value || 0}g, Fat ${macros.find(m => m.key === 'fat')?.value || 0}g
+
+Đánh giá các chỉ số đã ổn chưa và đưa ra gợi ý cải thiện ngắn gọn.`;
+
+      const { GoogleGenerativeAI } = await import('@google/generative-ai');
+      const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+      if (!apiKey) throw new Error('Missing Gemini API key');
+      const genAI = new GoogleGenerativeAI(apiKey);
+      const model = genAI.getGenerativeModel({ model: 'gemini-3.5-flash' });
+      const result = await model.generateContent(prompt);
+      const text = (await result.response).text();
+      setAiAnalysis(text);
+    } catch (err) {
+      setAiAnalysis('Lỗi: ' + (err as Error).message);
+    } finally {
+      setAiLoading(false);
+    }
   }
 
   if (userId == null) {
@@ -202,6 +238,40 @@ export function DashboardPage() {
             title={<Text type="secondary">Bước chân</Text>}
             value={daily?.steps ?? 0}
           />
+        </Card>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Card className="!rounded-2xl">
+          <div className="flex items-center gap-3">
+            <FireOutlined className="text-2xl text-orange-500" />
+            <div>
+              <Text strong className="text-base">Vận động</Text>
+              <div className="text-xs text-slate-500">Năng lượng tiêu hao khi vận động</div>
+            </div>
+          </div>
+          <div className="mt-3">
+            <Statistic
+              title={<Text type="secondary">Calo tiêu hao</Text>}
+              suffix="Kcal"
+              value={burned}
+            />
+          </div>
+        </Card>
+
+        <Card className="!rounded-2xl">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <RobotOutlined className="text-2xl text-emerald-500" />
+              <div>
+                <Text strong className="text-base">Phân tích AI</Text>
+                <div className="text-xs text-slate-500">Đánh giá chỉ số sức khỏe</div>
+              </div>
+            </div>
+            <Button type="primary" icon={<RobotOutlined />} onClick={handleAiAnalysis} loading={aiLoading} className="!rounded-xl">
+              Phân tích đánh giá
+            </Button>
+          </div>
         </Card>
       </div>
 
@@ -396,6 +466,31 @@ export function DashboardPage() {
           ))}
         </div>
       </Card>
+
+      <Modal
+        title={
+          <span className="flex items-center gap-2">
+            <RobotOutlined /> Phân tích đánh giá sức khỏe
+          </span>
+        }
+        open={aiModalOpen}
+        onCancel={() => setAiModalOpen(false)}
+        footer={null}
+        width={600}
+        className="!max-w-[95vw]"
+      >
+        <div className="space-y-4">
+          {aiLoading && <div className="flex items-center justify-center py-8"><Spin /></div>}
+          {!aiLoading && aiAnalysis && (
+            <div className="whitespace-pre-line rounded-xl border border-slate-100 bg-slate-50/50 p-4 text-sm leading-relaxed text-slate-700">
+              {aiAnalysis}
+            </div>
+          )}
+          {!aiLoading && !aiAnalysis && (
+            <Text type="secondary">Nhấn "Phân tích đánh giá" để bắt đầu.</Text>
+          )}
+        </div>
+      </Modal>
     </div>
   );
 }

@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react';
-import { Card, DatePicker, Typography, Space, Spin } from 'antd';
+import { Card, DatePicker, Typography, Space, Spin, Progress, Tag } from 'antd';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import dayjs from 'dayjs';
 import type { Dayjs } from 'dayjs';
 import { useCurrentUser } from '../hooks/useCurrentUser';
 import { useDailyLogRange } from '../hooks/useDailyLogs';
+import { useUser } from '../hooks/useUsers';
 import { todayISO } from '../lib/format';
 import type { DailyLog } from '@health-tracker/shared';
 
@@ -96,6 +97,7 @@ function ChartCard({
 
 export function TrendsPage() {
   const { userId } = useCurrentUser();
+  const { data: user } = useUser(userId);
 
   const [from, setFrom] = useState<string>(dayjs().subtract(6, 'day').format('YYYY-MM-DD'));
   const [to, setTo] = useState<string>(todayISO());
@@ -105,6 +107,17 @@ export function TrendsPage() {
   const logs = useMemo(() => data ?? [], [data]);
   const chartData = useMemo(() => toChartData(logs), [logs]);
   const isEmpty = !isLoading && logs.length === 0;
+
+  const goal = user?.daily_calorie_goal ?? 2000;
+  const avgIntake = useMemo(() => {
+    if (logs.length === 0) return 0;
+    const total = logs.reduce((s, l) => s + (l.calories_intake || 0), 0);
+    return Math.round(total / logs.length);
+  }, [logs]);
+
+  const surplus = avgIntake - goal;
+  const pct = goal > 0 ? Math.min(100, Math.round((avgIntake / goal) * 100)) : 0;
+  const overBudget = surplus > 0;
 
   const handleFrom = (value: Dayjs | null) => {
     setFrom(value ? value.format('YYYY-MM-DD') : dayjs().subtract(6, 'day').format('YYYY-MM-DD'));
@@ -144,6 +157,33 @@ export function TrendsPage() {
             />
           </Space>
         </Space>
+      </Card>
+
+      <Card className="!rounded-2xl">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <Text strong>Calo trung bình/ngày</Text>
+            <div className="text-xs text-slate-500">Mục tiêu: {goal} Kcal/ngày</div>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Tag color={overBudget ? 'error' : 'success'} className="!m-0 !rounded-lg !px-3 !py-1">
+              {overBudget ? `Nạp thừa ${surplus} Kcal` : `Giảm được ${Math.abs(surplus)} Kcal`}
+            </Tag>
+          </div>
+        </div>
+        <div className="mt-3">
+          <Progress
+            percent={pct}
+            status={overBudget ? 'exception' : 'active'}
+            strokeColor={{
+              '0%': '#10b981',
+              '100%': overBudget ? '#ef4444' : '#059669',
+            }}
+            trailColor="#f1f5f9"
+            strokeWidth={12}
+            format={() => `${avgIntake} / ${goal} Kcal`}
+          />
+        </div>
       </Card>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
