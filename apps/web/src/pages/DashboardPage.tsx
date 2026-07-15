@@ -2,7 +2,7 @@ import { apiClient } from '../api/client';
 import { useMemo, useState, useEffect } from 'react';
 import { Card, Progress, Statistic, Typography, Tag, Space, DatePicker, Select, InputNumber, Button, message, Modal, Spin } from 'antd';
 import dayjs from 'dayjs';
-import { FireOutlined, ThunderboltOutlined, ClockCircleOutlined, PlusOutlined, RobotOutlined } from '@ant-design/icons';
+import { FireOutlined, ClockCircleOutlined, PlusOutlined, RobotOutlined } from '@ant-design/icons';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 import { useUser } from '../hooks/useUsers';
 import { useCurrentUser } from '../hooks/useCurrentUser';
@@ -43,9 +43,9 @@ export function DashboardPage() {
   const burned = daily?.calories_burned ?? 0;
   const net = intake - burned;
   const goal = user?.daily_calorie_goal ?? 0;
-  const remaining = goal - intake;
-  const pct = goal > 0 ? Math.min(100, Math.round((intake / goal) * 100)) : 0;
-  const overCal = remaining < 0;
+  const remaining = goal - net;
+  const pct = goal > 0 ? Math.min(100, Math.round((net / goal) * 100)) : 0;
+  const overBudget = remaining < 0;
 
   const macros = useMemo(() => {
     const protein = foods?.reduce((s, f) => s + f.protein_g, 0) ?? 0;
@@ -144,13 +144,8 @@ export function DashboardPage() {
 
 Đánh giá các chỉ số đã ổn chưa và đưa ra gợi ý cải thiện ngắn gọn.`;
 
-      const { GoogleGenerativeAI } = await import('@google/generative-ai');
-      const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-      if (!apiKey) throw new Error('Missing Gemini API key');
-      const genAI = new GoogleGenerativeAI(apiKey);
-      const model = genAI.getGenerativeModel({ model: 'gemini-3.5-flash' });
-      const result = await model.generateContent(prompt);
-      const text = (await result.response).text();
+      const { generateWithGemini } = await import('../utils/gemini.js');
+      const text = await generateWithGemini(prompt);
       setAiAnalysis(text);
     } catch (err) {
       setAiAnalysis('Lỗi: ' + (err as Error).message);
@@ -182,22 +177,19 @@ export function DashboardPage() {
       </div>
 
       <Card className="!rounded-2xl">
-        <div className="mb-4 flex items-center justify-between">
+        <div className="mb-3 flex items-center justify-between">
           <Space>
             <FireOutlined className="text-2xl text-emerald-500" />
             <div>
-              <Text strong className="text-base">Calo nạp vào</Text>
+              <Text strong className="text-base">Còn lại: {formatKcal(Math.max(0, remaining))} Kcal</Text>
               <div className="text-xs text-slate-500">
-                {formatKcal(intake)} / {formatKcal(goal)} Kcal
+                Mục tiêu {formatKcal(goal)} - Nạp {formatKcal(intake)} + Tiêu hao {formatKcal(burned)} = Thực tế {formatKcal(net)} Kcal
               </div>
             </div>
           </Space>
           <div className="flex flex-wrap items-center gap-2">
-            <Tag color="orange" className="!m-0 !rounded-lg !px-3 !py-1">
-              <ThunderboltOutlined /> Net: {formatKcal(net)} Kcal
-            </Tag>
-            <Tag color={overCal ? 'error' : 'success'} className="!m-0 !rounded-lg !px-3 !py-1">
-              {overCal ? `Vượt ${formatKcal(-remaining)} Kcal` : `Còn lại ${formatKcal(remaining)} Kcal`}
+            <Tag color={overBudget ? 'error' : 'success'} className="!m-0 !rounded-lg !px-3 !py-1">
+              {overBudget ? `Vượt ${formatKcal(-remaining)} Kcal` : `Trong tầm kiểm soát`}
             </Tag>
           </div>
         </div>
@@ -207,13 +199,14 @@ export function DashboardPage() {
         </div>
         <Progress
           percent={pct}
-          status={overCal ? 'exception' : 'active'}
+          status={overBudget ? 'exception' : 'active'}
           strokeColor={{
             '0%': '#10b981',
-            '100%': overCal ? '#ef4444' : '#059669',
+            '100%': overBudget ? '#ef4444' : '#059669',
           }}
           trailColor="#f1f5f9"
           strokeWidth={12}
+          format={() => `${formatKcal(net)} / ${formatKcal(goal)} Kcal`}
         />
       </Card>
 

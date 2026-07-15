@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Input, Button, message } from 'antd';
 import { SendOutlined, RobotOutlined } from '@ant-design/icons';
+import { generateWithGemini } from '../utils/gemini.js';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -31,13 +32,7 @@ export function PortionChatBot({ foodName, onApplyQuantity }: { foodName: string
 
 Câu hỏi: ${userMsg}${foodName ? ` (Món hiện tại: ${foodName})` : ''}`;
 
-      const { GoogleGenerativeAI } = await import('@google/generative-ai');
-      const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-      if (!apiKey) throw new Error('Missing VITE_GEMINI_API_KEY');
-      const client = new GoogleGenerativeAI(apiKey);
-      const model = client.getGenerativeModel({ model: 'gemini-3.5-flash' });
-      const result = await model.generateContent(prompt);
-      const text = (await result.response).text();
+      const text = await generateWithGemini(prompt);
       setMessages((m) => [...m, { role: 'assistant', content: text }]);
     } catch (err) {
       console.error('Chatbot Gemini error:', err);
