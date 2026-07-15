@@ -177,7 +177,7 @@ export function DashboardPage() {
       </div>
 
       <Card className="!rounded-2xl">
-        <div className="mb-3 flex items-center justify-between">
+        <div className="mb-3 flex items-center justify-between gap-2">
           <Space>
             <FireOutlined className="text-2xl text-emerald-500" />
             <div>
