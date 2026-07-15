@@ -5,6 +5,7 @@ import dayjs from 'dayjs';
 import { useCurrentUser } from '../hooks/useCurrentUser';
 import { useDailyLog, useUpsertDailyLog } from '../hooks/useDailyLogs';
 import { useStravaStatus, useStravaConnect, useStravaDisconnect, useStravaSync } from '../hooks/useStrava';
+import { useServiceWorker } from '../hooks/useServiceWorker';
 import { Card, Field } from '../components/ui';
 import type { UpsertDailyLogInput } from '@health-tracker/shared';
 import { todayISO } from '../lib/format';
@@ -111,6 +112,7 @@ function StravaCard({ userId }: { userId: number | null }) {
 
 export function DailyLogPage() {
   const { userId } = useCurrentUser();
+  const { registration: swRegistration } = useServiceWorker();
   const [date, setDate] = useState(todayISO());
   const { data: daily } = useDailyLog(userId, date);
   const upsert = useUpsertDailyLog(userId);
@@ -135,6 +137,8 @@ export function DailyLogPage() {
   const intervalMinutesRef = useRef(20);
   const recommendedWaterRef = useRef(0);
 
+  const isIOSSafari = typeof window !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent) && !('standalone' in window && (window as any).standalone);
+
   const recommendedWater = form.weight_kg ? Math.round(form.weight_kg * 0.04 * 1000) : form.recommended_water_ml ?? 0;
   const waterPct = recommendedWater > 0 ? Math.min(100, Math.round(((form.water_ml ?? 0) / recommendedWater) * 100)) : 0;
   recommendedWaterRef.current = recommendedWater;
@@ -154,18 +158,6 @@ export function DailyLogPage() {
     });
   }, [date, daily]);
 
-  function fallbackNotify(title: string) {
-    try {
-      new Notification(title, {
-        body: 'Đã đến giờ uống nước!',
-        tag: 'water-reminder',
-        requireInteraction: true,
-      });
-    } catch {
-      message.info('Đến giờ uống nước! 💧');
-    }
-  }
-
   const fireNotification = useCallback(() => {
     const target = recommendedWaterRef.current;
     const title = 'Nhắc nhở uống nước 💧';
@@ -174,21 +166,24 @@ export function DailyLogPage() {
       tag: 'water-reminder',
       requireInteraction: true,
     };
-    const sw = navigator.serviceWorker;
-    if (sw) {
-      sw.getRegistration()
-        .then((reg) => {
-          if (reg && 'showNotification' in reg) {
-            reg.showNotification(title, options).catch(() => fallbackNotify(title));
-          } else {
-            fallbackNotify(title);
-          }
-        })
-        .catch(() => fallbackNotify(title));
-    } else {
-      fallbackNotify(title);
+
+    if (swRegistration && 'showNotification' in swRegistration) {
+      swRegistration.showNotification(title, options).catch(() => {
+        message.info('Đến giờ uống nước! 💧');
+      });
+      return;
     }
-  }, []);
+
+    try {
+      if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification(title, options);
+      } else {
+        message.info('Đến giờ uống nước! 💧');
+      }
+    } catch {
+      message.info('Đến giờ uống nước! 💧');
+    }
+  }, [swRegistration]);
 
   // Timestamp-anchored ticker: derives the remaining minutes from an absolute
   // next-reminder time so the countdown survives a page refresh.
@@ -209,30 +204,43 @@ export function DailyLogPage() {
     }, 1000);
   }, [fireNotification]);
 
-  const startReminder = useCallback(async () => {
+  const startReminder = useCallback(() => {
     if (!('Notification' in window)) {
       message.error('Trình duyệt không hỗ trợ thông báo');
       return;
     }
 
-    let permission = Notification.permission;
-    if (permission === 'default') {
-      permission = await Notification.requestPermission();
-    }
+    const minutes = form.water_reminder_interval_minutes ?? 20;
 
-    if (permission !== 'granted') {
-      message.error('Vui lòng cấp quyền thông báo để nhận nhắc nhở');
+    const enable = () => {
+      const next = Date.now() + minutes * 60000;
+      nextReminderAtRef.current = next;
+      intervalMinutesRef.current = minutes;
+      persistReminder({ active: true, nextReminderAt: next, intervalMinutes: minutes });
+      setReminderActive(true);
+      setReminderCountdown(minutes);
+      startTicker();
+    };
+
+    if (Notification.permission === 'granted') {
+      enable();
       return;
     }
 
-    const minutes = form.water_reminder_interval_minutes ?? 20;
-    const next = Date.now() + minutes * 60000;
-    nextReminderAtRef.current = next;
-    intervalMinutesRef.current = minutes;
-    persistReminder({ active: true, nextReminderAt: next, intervalMinutes: minutes });
-    setReminderActive(true);
-    setReminderCountdown(minutes);
-    startTicker();
+    if (Notification.permission === 'denied') {
+      message.error('Vui lòng bật quyền thông báo trong cài đặt trình duyệt để nhận nhắc nhở');
+      return;
+    }
+
+    Notification.requestPermission().then((permission) => {
+      if (permission === 'granted') {
+        enable();
+      } else {
+        message.error('Vui lòng cấp quyền thông báo để nhận nhắc nhở');
+      }
+    }).catch(() => {
+      message.error('Không thể yêu cầu quyền thông báo');
+    });
   }, [form.water_reminder_interval_minutes, startTicker]);
 
   const stopReminder = useCallback(() => {
@@ -276,6 +284,24 @@ export function DailyLogPage() {
   const sipWater = useCallback(() => {
     setForm((prev) => ({ ...prev, water_ml: (prev.water_ml ?? 0) + 200 }));
   }, []);
+
+  // iOS Safari: when app returns to foreground, check if we missed a reminder
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible' && reminderActive) {
+        const now = Date.now();
+        if (nextReminderAtRef.current <= now) {
+          fireNotification();
+          const next = now + intervalMinutesRef.current * 60000;
+          nextReminderAtRef.current = next;
+          persistReminder({ active: true, nextReminderAt: next, intervalMinutes: intervalMinutesRef.current });
+          setReminderCountdown(intervalMinutesRef.current);
+        }
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, [reminderActive, fireNotification]);
 
   if (userId == null) return <Card>Vui lòng chọn hồ sơ ở trang Hồ sơ trước.</Card>;
 
@@ -331,6 +357,16 @@ export function DailyLogPage() {
             <Tag color="blue" className="!m-0">
               Nhắc sau: {reminderCountdown} phút
             </Tag>
+          )}
+          {isIOSSafari && reminderActive && (
+            <Tag color="orange" className="!m-0">
+              Mở Safari → Chia sẻ → Thêm vào MHĐ để nhận thông báo nền
+            </Tag>
+          )}
+          {isIOSSafari && !reminderActive && (
+            <Text type="secondary" className="text-xs">
+              Trên iPhone, thêm app vào Màn hình chính để nhận thông báo nền
+            </Text>
           )}
         </div>
       </Card>

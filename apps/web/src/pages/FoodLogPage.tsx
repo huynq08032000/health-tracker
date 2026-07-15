@@ -2,12 +2,12 @@
 import { Input, InputNumber, Select, Button, Checkbox, message, Typography, Modal, DatePicker } from 'antd';
 import dayjs from 'dayjs';
 import { useCurrentUser } from '../hooks/useCurrentUser';
-import { useFoodLogs, useCreateFoodLog, useDeleteFoodLog } from '../hooks/useFoodLogs';
+import { useFoodLogs, useCreateFoodLog, useUpdateFoodLog, useDeleteFoodLog } from '../hooks/useFoodLogs';
 import { useFoodSearch, useCreateFood } from '../hooks/useFoods';
 import { useGeminiNutrition } from '../hooks/useGeminiNutrition';
 import { Card, Field } from '../components/ui';
 import { PortionChatBot } from '../components/PortionChatBot';
-import type { CreateFoodLogInput, Food } from '@health-tracker/shared';
+import type { CreateFoodLogInput, UpdateFoodLogInput, Food, FoodLog } from '@health-tracker/shared';
 import { formatKcal, todayISO } from '../lib/format';
 
 const { Text } = Typography;
@@ -62,6 +62,7 @@ export function FoodLogPage() {
   const [date, setDate] = useState(todayISO());
   const { data: foods } = useFoodLogs(userId, date);
   const createLog = useCreateFoodLog(userId);
+  const updateLog = useUpdateFoodLog(userId);
   const remove = useDeleteFoodLog(userId);
   const createFood = useCreateFood();
   const gemini = useGeminiNutrition();
@@ -79,6 +80,16 @@ export function FoodLogPage() {
   const [flash, setFlash] = useState(false);
   const flashTimer = useRef<number>();
   const [aiLoading, setAiLoading] = useState(false);
+
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editingLog, setEditingLog] = useState<FoodLog | null>(null);
+  const [editForm, setEditForm] = useState<FormState>(DEFAULT_FORM);
+  const [editManual, setEditManual] = useState<Record<MacroKey, boolean>>({
+    calories: false,
+    protein_g: false,
+    carbs_g: false,
+    fat_g: false,
+  });
 
   function flashNow() {
     setFlash(true);
@@ -132,6 +143,58 @@ export function FoodLogPage() {
     setManual({ calories: false, protein_g: false, carbs_g: false, fat_g: false });
     setForm(DEFAULT_FORM);
   }
+
+  function openEditModal(log: FoodLog) {
+    setEditingLog(log);
+    setEditForm({
+      meal_type: log.meal_type,
+      food_name: log.food_name,
+      quantity_g: log.quantity_g,
+      calories: log.calories,
+      protein_g: log.protein_g,
+      carbs_g: log.carbs_g,
+      fat_g: log.fat_g,
+    });
+    setEditManual({ calories: false, protein_g: false, carbs_g: false, fat_g: false });
+    setEditModalOpen(true);
+  }
+
+  function closeEditModal() {
+    setEditModalOpen(false);
+    setEditingLog(null);
+    setEditForm(DEFAULT_FORM);
+    setEditManual({ calories: false, protein_g: false, carbs_g: false, fat_g: false });
+  }
+
+  function onEditSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editingLog || !canSubmitEdit) return;
+
+    const payload: UpdateFoodLogInput = {
+      meal_type: editForm.meal_type,
+      food_name: editForm.food_name.trim(),
+      quantity_g: editForm.quantity_g,
+      calories: editForm.calories,
+      protein_g: editForm.protein_g,
+      carbs_g: editForm.carbs_g,
+      fat_g: editForm.fat_g,
+    };
+
+    updateLog.mutate(
+      { id: editingLog.id, input: payload },
+      {
+        onSuccess: () => {
+          message.success('Đã cập nhật món ăn thành công!');
+          closeEditModal();
+        },
+        onError: () => {
+          message.error('Cập nhật món ăn thất bại');
+        },
+      },
+    );
+  }
+
+  const canSubmitEdit = editForm.food_name.trim().length > 0 && editForm.quantity_g > 0;
 
   const qtyValid = form.quantity_g > 0;
   const nameValid = form.food_name.trim().length > 0;
@@ -333,6 +396,95 @@ export function FoodLogPage() {
       </Card>
 
       <Modal
+        title="Chỉnh sửa món ăn"
+        open={editModalOpen}
+        onCancel={closeEditModal}
+        footer={null}
+        width={600}
+      >
+        <form className="space-y-4" onSubmit={onEditSubmit}>
+          <Field label="Bữa">
+            <Select
+              value={editForm.meal_type}
+              onChange={(v) => setEditForm({ ...editForm, meal_type: v as FormState['meal_type'] })}
+              options={[
+                { value: 'breakfast', label: 'Sáng' },
+                { value: 'lunch', label: 'Trưa' },
+                { value: 'dinner', label: 'Tối' },
+                { value: 'snack', label: 'Ăn vặt' },
+              ]}
+              className="!rounded-xl"
+            />
+          </Field>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium text-slate-700">Tên món</label>
+            <Input
+              placeholder="Nhập tên món…"
+              value={editForm.food_name}
+              onChange={(e) => setEditForm({ ...editForm, food_name: e.target.value })}
+              className="!rounded-xl"
+            />
+          </div>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium text-slate-700">Khối lượng (g)</label>
+            <InputNumber
+              min={1}
+              value={editForm.quantity_g}
+              onChange={(v) => setEditForm((prev) => ({ ...prev, quantity_g: Number(v) }))}
+              className="!w-full !rounded-xl"
+              controls={false}
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <MacroField label="Kcal" k="calories" value={editForm.calories} manual={editManual.calories} flashCls={flashCls} onChange={(k, v) => setEditForm((prev) => ({ ...prev, [k]: v }))} onReset={(k) => {
+              if (!editingLog) return;
+              const factor = editForm.quantity_g / 100;
+              const per100 = editingLog.calories / (editingLog.quantity_g / 100) || 0;
+              setEditForm((prev) => ({ ...prev, [k]: round1(per100 * factor) }));
+              setEditManual((m) => ({ ...m, [k]: false }));
+            }} />
+            <MacroField label="Protein (g)" k="protein_g" value={editForm.protein_g} manual={editManual.protein_g} flashCls={flashCls} onChange={(k, v) => setEditForm((prev) => ({ ...prev, [k]: v }))} onReset={(k) => {
+              if (!editingLog) return;
+              const factor = editForm.quantity_g / 100;
+              const per100 = editingLog.protein_g / (editingLog.quantity_g / 100) || 0;
+              setEditForm((prev) => ({ ...prev, [k]: round1(per100 * factor) }));
+              setEditManual((m) => ({ ...m, [k]: false }));
+            }} />
+            <MacroField label="Carbs (g)" k="carbs_g" value={editForm.carbs_g} manual={editManual.carbs_g} flashCls={flashCls} onChange={(k, v) => setEditForm((prev) => ({ ...prev, [k]: v }))} onReset={(k) => {
+              if (!editingLog) return;
+              const factor = editForm.quantity_g / 100;
+              const per100 = editingLog.carbs_g / (editingLog.quantity_g / 100) || 0;
+              setEditForm((prev) => ({ ...prev, [k]: round1(per100 * factor) }));
+              setEditManual((m) => ({ ...m, [k]: false }));
+            }} />
+            <MacroField label="Fat (g)" k="fat_g" value={editForm.fat_g} manual={editManual.fat_g} flashCls={flashCls} onChange={(k, v) => setEditForm((prev) => ({ ...prev, [k]: v }))} onReset={(k) => {
+              if (!editingLog) return;
+              const factor = editForm.quantity_g / 100;
+              const per100 = editingLog.fat_g / (editingLog.quantity_g / 100) || 0;
+              setEditForm((prev) => ({ ...prev, [k]: round1(per100 * factor) }));
+              setEditManual((m) => ({ ...m, [k]: false }));
+            }} />
+          </div>
+
+          <div className="flex justify-end gap-2">
+            <Button onClick={closeEditModal}>Hủy</Button>
+            <Button type="primary" htmlType="submit" loading={updateLog.isPending}>
+              Lưu thay đổi
+            </Button>
+          </div>
+
+          {!canSubmitEdit && (
+            <p className="text-sm text-rose-500">
+              Vui lòng nhập tên món, khối lượng &gt; 0 và chỉ số dinh dưỡng hợp lệ.
+            </p>
+          )}
+        </form>
+      </Modal>
+
+      <Modal
         title="Thêm món ăn mới"
         open={addModalOpen}
         onCancel={closeAddModal}
@@ -412,6 +564,14 @@ export function FoodLogPage() {
               </div>
               <div className="flex items-center gap-4">
                 <Text className="font-semibold text-emerald-600">{formatKcal(f.calories)} Kcal</Text>
+                <Button
+                  type="text"
+                  size="small"
+                  onClick={() => openEditModal(f)}
+                  className="!text-blue-600"
+                >
+                  Sửa
+                </Button>
                 <Button
                   type="text"
                   danger
