@@ -2,7 +2,8 @@ import type { Request, Response, NextFunction } from 'express';
 import { HttpError } from './errorHandler.js';
 import { asyncHandler } from './asyncHandler.js';
 import crypto from 'crypto';
-import { getOne, run } from '../db/pg.js';
+import { getOne, run, transaction } from '../db/pg.js';
+import { PoolClient } from 'pg';
 
 declare module 'express' {
   interface Request {
@@ -29,10 +30,11 @@ export const authMiddleware = asyncHandler(async (req: Request, _res: Response, 
   next();
 });
 
-export async function issueToken(userId: number): Promise<string> {
+export async function issueToken(userId: number, client?: PoolClient): Promise<string> {
   const token = crypto.randomUUID ? crypto.randomUUID() : crypto.randomBytes(32).toString('hex');
   const expiresAt = new Date(Date.now() + SESSION_TTL_MS).toISOString();
-  await run(
+  const q = client ? (text: string, params?: any[]) => client.query(text, params) : run;
+  await q(
     `INSERT INTO sessions (token, user_id, expires_at) VALUES ($1, $2, $3)`,
     [token, userId, expiresAt],
   );
