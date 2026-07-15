@@ -401,6 +401,7 @@ export function FoodLogPage() {
         onCancel={closeEditModal}
         footer={null}
         width={600}
+        className="!max-w-[95vw]"
       >
         <form className="space-y-4" onSubmit={onEditSubmit}>
           <Field label="Bữa">
@@ -490,6 +491,7 @@ export function FoodLogPage() {
         onCancel={closeAddModal}
         footer={null}
         width={600}
+        className="!max-w-[95vw]"
       >
         <form className="space-y-4" onSubmit={onSubmit}>
           <div className="flex gap-2">
@@ -555,14 +557,14 @@ export function FoodLogPage() {
         {foods?.length === 0 && <Text type="secondary">Chưa có món nào.</Text>}
         <div className="space-y-3">
           {foods?.map((f) => (
-            <div key={f.id} className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50/50 px-4 py-3">
-              <div>
-                <Text strong>{f.food_name}</Text>
+            <div key={f.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-100 bg-slate-50/50 px-4 py-3">
+              <div className="min-w-0 flex-1">
+                <Text strong className="block truncate">{f.food_name}</Text>
                 <div className="text-xs text-slate-500">
                   {f.meal_type} · {f.quantity_g}g
                 </div>
               </div>
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-3">
                 <Text className="font-semibold text-emerald-600">{formatKcal(f.calories)} Kcal</Text>
                 <Button
                   type="text"

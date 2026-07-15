@@ -322,7 +322,7 @@ export function DailyLogPage() {
       </div>
 
       <Card className="!rounded-2xl" title={<span className="text-lg font-semibold">Mục tiêu nước hôm nay</span>}>
-        <div className="mb-4 flex items-center justify-between">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
           <div>
             <Text type="secondary">Khuyến nghị: {recommendedWater} ml/ngày</Text>
             <div className="text-xs text-slate-400">

@@ -156,7 +156,7 @@ export function DashboardPage() {
               </div>
             </div>
           </Space>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2">
             <Tag color="orange" className="!m-0 !rounded-lg !px-3 !py-1">
               <ThunderboltOutlined /> Net: {formatKcal(net)} Kcal
             </Tag>
@@ -384,9 +384,9 @@ export function DashboardPage() {
         {foods?.length === 0 && <Text type="secondary">Chưa có món nào.</Text>}
         <div className="space-y-3">
           {foods?.map((f) => (
-            <div key={f.id} className="flex items-center justify-between rounded-lg border border-slate-100 bg-slate-50/50 px-4 py-3">
-              <div>
-                <Text strong>{f.food_name}</Text>
+            <div key={f.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-100 bg-slate-50/50 px-4 py-3">
+              <div className="min-w-0 flex-1">
+                <Text strong className="block truncate">{f.food_name}</Text>
                 <div className="text-xs text-slate-500">
                   {f.meal_type} · {f.quantity_g}g
                 </div>
