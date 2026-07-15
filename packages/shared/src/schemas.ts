@@ -175,6 +175,14 @@ export function calcTdee(input: TdeeInput): number {
   return Math.round(tdee + goalDelta);
 }
 
+export function calcMaintenanceTdee(input: Omit<TdeeInput, 'goal'>): number {
+  const { gender, birth_date, height_cm, weight_kg, activity_level } = input;
+  const age = ageFromBirthDate(birth_date);
+  const bmr = 10 * weight_kg + 6.25 * height_cm - 5 * age + (gender === 'male' ? 5 : -161);
+  const tdee = bmr * ActivityFactor[activity_level];
+  return Math.round(tdee);
+}
+
 export const StravaConnectionSchema = z.object({
   id: z.number(),
   user_id: z.number(),

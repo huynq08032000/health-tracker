@@ -8,6 +8,7 @@ import { useDailyLogRange } from '../hooks/useDailyLogs';
 import { useUser } from '../hooks/useUsers';
 import { todayISO } from '../lib/format';
 import type { DailyLog } from '@health-tracker/shared';
+import { calcMaintenanceTdee } from '@health-tracker/shared';
 import { ThunderboltOutlined } from '@ant-design/icons';
 
 const { Title, Text } = Typography;
@@ -110,24 +111,39 @@ export function TrendsPage() {
   const isEmpty = !isLoading && logs.length === 0;
 
   const goal = user?.daily_calorie_goal ?? 2000;
+  const maintenanceTdee = useMemo(() => {
+    if (!user) return goal;
+    try {
+      return calcMaintenanceTdee({
+        gender: user.gender,
+        birth_date: user.birth_date,
+        height_cm: user.height_cm,
+        weight_kg: user.weight_kg,
+        activity_level: user.activity_level,
+      });
+    } catch {
+      return goal;
+    }
+  }, [user, goal]);
+
   const daysWithIntake = useMemo(() => logs.filter((l) => (l.calories_intake || 0) > 0), [logs]);
   const netLogs = useMemo(() => logs.map((l) => ({ ...l, net_calories: (l.calories_intake || 0) - (l.calories_burned || 0) })), [logs]);
   const totalNet = useMemo(() => netLogs.reduce((s, l) => s + l.net_calories, 0), [netLogs]);
-  const totalMax = daysWithIntake.length * goal;
-  const surplus = totalNet - totalMax;
-  const pct = totalMax > 0 ? Math.min(100, Math.round((totalNet / totalMax) * 100)) : 0;
-  const overBudget = surplus > 0;
+  const totalMaintenanceLimit = daysWithIntake.length * maintenanceTdee;
+  const deficit = totalMaintenanceLimit - totalNet;
+  const pct = totalMaintenanceLimit > 0 ? Math.min(100, Math.round((totalNet / totalMaintenanceLimit) * 100)) : 0;
+  const overBudget = totalNet > totalMaintenanceLimit;
 
   const insight = useMemo(() => {
     if (netLogs.length === 0) return 'Chưa có đủ dữ liệu để đưa ra nhận định.';
     const avgNet = Math.round(totalNet / netLogs.length);
-    const underDays = netLogs.filter((l) => l.net_calories <= goal).length;
+    const underDays = netLogs.filter((l) => l.net_calories <= maintenanceTdee).length;
     const overDays = netLogs.length - underDays;
     if (overDays === 0) {
-      return `Tuần này, bạn duy trì net calo trung bình ${avgNet} Kcal/ngày. Bạn đã thành công ${underDays}/${netLogs.length} ngày nằm trong ngân sách calo.`;
+      return `Tuần này, bạn duy trì net calo trung bình ${avgNet} Kcal/ngày. Bạn đã thành công ${underDays}/${netLogs.length} ngày nằm dưới mức giữ cân (${maintenanceTdee} Kcal/ngày).`;
     }
-    return `Tuần này, bạn đạt trung bình ${avgNet} Kcal Net mỗi ngày. Bạn đã vượt ngân sách ${overDays} ngày và nằm trong tầm kiểm soát ${underDays} ngày.`;
-  }, [netLogs, totalNet]);
+    return `Tuần này, bạn đạt trung bình ${avgNet} Kcal Net mỗi ngày. Bạn đã vượt mức giữ cân ${overDays} ngày và nằm dưới mức giữ cân ${underDays} ngày.`;
+  }, [netLogs, totalNet, maintenanceTdee]);
 
   const handleFrom = (value: Dayjs | null) => {
     setFrom(value ? value.format('YYYY-MM-DD') : dayjs().subtract(6, 'day').format('YYYY-MM-DD'));
@@ -175,14 +191,14 @@ export function TrendsPage() {
             <Text strong>Tổng Net Calories</Text>
             <div className="text-xs text-slate-500">
               {netLogs.length > 0
-                ? `${totalNet} / ${totalMax} Kcal (${netLogs.length} ngày có dữ liệu)`
+                ? `${totalNet} / ${totalMaintenanceLimit} Kcal (${netLogs.length} ngày có dữ liệu)`
                 : 'Chưa có dữ liệu trong khoảng thời gian này'}
             </div>
           </div>
           {netLogs.length > 0 && (
             <div className="flex flex-wrap items-center gap-2">
               <Tag color={overBudget ? 'error' : 'success'} className="!m-0 !rounded-lg !px-3 !py-1">
-                {overBudget ? `Nạp thừa ${surplus} Kcal` : `Giảm được ${Math.abs(surplus)} Kcal`}
+                {overBudget ? `Nạp thừa ${Math.abs(deficit)} Kcal` : `Thâm hụt ${deficit} Kcal`}
               </Tag>
             </div>
           )}
@@ -198,7 +214,7 @@ export function TrendsPage() {
               }}
               trailColor="#f1f5f9"
               strokeWidth={12}
-              format={() => `${totalNet} / ${totalMax} Kcal`}
+              format={() => `${totalNet} / ${totalMaintenanceLimit} Kcal`}
             />
           </div>
         )}
@@ -224,10 +240,10 @@ export function TrendsPage() {
                 formatter={(value: number | string) => [`${value} Kcal`, 'Net Calories']}
                 labelFormatter={(label) => `Ngày: ${label}`}
               />
-              <ReferenceLine y={goal} stroke="#ef4444" strokeDasharray="4 4" label={{ value: `Mục tiêu ${goal}`, position: 'top', fill: '#ef4444', fontSize: 12 }} />
+              <ReferenceLine y={maintenanceTdee} stroke="#ef4444" strokeDasharray="4 4" label={{ value: `Mức giữ cân ${maintenanceTdee}`, position: 'top', fill: '#ef4444', fontSize: 12 }} />
               <Bar dataKey="net_calories" name="Net Calories" radius={[4, 4, 0, 0]}>
                 {netLogs.map((entry) => (
-                  <Cell key={entry.log_date} fill={entry.net_calories <= goal ? '#10b981' : '#ef4444'} />
+                  <Cell key={entry.log_date} fill={entry.net_calories <= maintenanceTdee ? '#10b981' : '#ef4444'} />
                 ))}
               </Bar>
             </BarChart>
